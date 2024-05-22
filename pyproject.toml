@@ -6,9 +6,9 @@ authors = ["melonedo <44501064+melonedo@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
-pyautogui = "^0.9.54"
+python = ">=3.8, <3.11"
 pywinauto = "^0.6.8"
+matlabengine = "~9.14"
 
 
 [build-system]

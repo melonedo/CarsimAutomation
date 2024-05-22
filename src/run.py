@@ -1,14 +1,14 @@
-import pywinauto, re
+from matlab.engine.matlabengine import MatlabEngine
+import pywinauto, re, matlab.engine
 
 
 class Automation:
     carsim: pywinauto.WindowSpecification
     simulink: pywinauto.WindowSpecification
-    pars_file: str
+    matlab: MatlabEngine
 
     def __init__(
         self,
-        pars_file=r"C:\Users\melonedo\Documents\CarSim2019.1_Data\Procedures\Proc_39e0cbdf-b447-456e-b474-bb2dcd9cbb96.par",
         carsim_path=r"C:\Users\melonedo\AppData\Local\CarSim2019.1_Prog\CarSim.exe",
         matlab_path=r"C:\Program Files\MATLAB\R2023a\bin\win64\MATLAB.exe",
         simulink_re=r".* - Simulink academic use",
@@ -19,35 +19,43 @@ class Automation:
             .connect(path=matlab_path)
             .window(title_re=simulink_re)
         )
-        self.pars_file = pars_file
+        self.matlab = matlab.engine.connect_matlab() # type: ignore
+        print(self.matlab)
 
-    def send_to_simulink(self):
-        # self.carsim.send_keystrokes("%s")
-        self.carsim.type_keys("%s")
+    def send_to_simulink(self, silent=True):
+        "Update configuration and send to simulink"
+        if silent:
+            self.carsim.send_keystrokes("%s")
+        else:
+            self.carsim.type_keys("%s")
 
-    def run_now(self):
-        self.carsim.type_keys("%r")
+    def run_simulink(self, slx="TVC_23b_SIL"):
+        return self.matlab.sim(slx)
 
-    def run_simulink(self):
-        self.simulink.type_keys("^t")
+    def save_data(self, out, file):
+        logsout = self.matlab.getfield(out, "logsout")
+        self.matlab.exportToPreviousRelease(logsout, file, "data")
 
-    def set_param(self, **kwargs):
-        with open(self.pars_file, "rt") as f:
+    def set_carsim_param(
+        self,
+        pars_file=r"C:\Users\melonedo\Documents\CarSim2019.1_Data\Procedures\Proc_39e0cbdf-b447-456e-b474-bb2dcd9cbb96.par",
+        **kwargs,
+    ):
+        with open(pars_file, "rt") as f:
             pars = f.read()
+
         for k, v in kwargs.items():
-            # print(f"^{k} (.+)$")
-            # print(re.findall(f"^{k} (.+)$", pars, re.MULTILINE))
             pars, n = re.subn(f"^({k}) (.+)$", f"\\1 {v}", pars, 0, re.MULTILINE)
             if not n:
                 raise ValueError(f"Parameter {k} has no matches")
             if n > 1:
                 raise ValueError(f"Parameter {k} has multiple matches")
 
-        with open(self.pars_file, "wt") as f:
+        with open(pars_file, "wt") as f:
             f.write(pars)
-
 
 a = Automation()
 # a.send_to_simulink()
 # a.run_simulink()
-a.set_param(SV_VXS=10)
+# a.set_carsim_param(SV_VXS=10)
+out = a.run_simulink()
